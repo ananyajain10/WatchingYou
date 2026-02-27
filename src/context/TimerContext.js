@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { loadTimers, saveTimers } from "../storage/timerStorage.js";
+import { AppState } from "react-native";
+import { loadTimers, saveTimers } from "../storage/timerStorage";
 import { v4 as uuidv4 } from "uuid";
 import { getTodayDateString } from "../utils/dateUtils";
 
@@ -16,7 +17,8 @@ export const TimerProvider = ({ children }) => {
   useEffect(() => {
     const initialize = async () => {
       const storedTimers = await loadTimers();
-      if (storedTimers) {
+
+      if (storedTimers?.length) {
         setTimers(storedTimers);
 
         const runningTimer = storedTimers.find(t => t.isRunning);
@@ -24,6 +26,7 @@ export const TimerProvider = ({ children }) => {
           setActiveTimerId(runningTimer.id);
         }
       }
+
       setIsLoaded(true);
     };
 
@@ -44,21 +47,22 @@ export const TimerProvider = ({ children }) => {
   =============================== */
   const addTimer = (date, name) => {
     if (date !== getTodayDateString()) {
-        console.warn("Cannot add timer to past or future date.");
-        return;
+      console.warn("Cannot add timer to past or future date.");
+      return;
     }
 
     const newTimer = {
-        id: uuidv4(),
-        date,
-        name,
-        totalDuration: 0,
-        isRunning: false,
-        startTime: null,
-  };
+      id: uuidv4(),
+      date,
+      name,
+      totalDuration: 0,
+      isRunning: false,
+      startTime: null,
+    };
 
     setTimers(prev => [...prev, newTimer]);
-};
+  };
+
   /* ===============================
      START TIMER
   =============================== */
@@ -114,6 +118,70 @@ export const TimerProvider = ({ children }) => {
     return timers.filter(timer => timer.date === date);
   };
 
+  /* ===============================
+     HANDLE DAY CHANGE
+  =============================== */
+  const handleDayChange = () => {
+    if (!activeTimerId) return;
+
+    const activeTimer = timers.find(t => t.id === activeTimerId);
+    if (!activeTimer || !activeTimer.isRunning) return;
+
+    const today = getTodayDateString();
+
+    if (activeTimer.date !== today) {
+      const midnight = new Date(
+        activeTimer.date + "T23:59:59.999"
+      ).getTime();
+
+      const durationToMidnight =
+        midnight - activeTimer.startTime;
+
+      setTimers(prev =>
+        prev.map(timer =>
+          timer.id === activeTimerId
+            ? {
+                ...timer,
+                totalDuration:
+                  timer.totalDuration + durationToMidnight,
+                isRunning: false,
+                startTime: null,
+              }
+            : timer
+        )
+      );
+
+      setActiveTimerId(null);
+    }
+  };
+
+  /* ===============================
+     CHECK WHEN APP COMES FOREGROUND
+  =============================== */
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      state => {
+        if (state === "active") {
+          handleDayChange();
+        }
+      }
+    );
+
+    return () => subscription.remove();
+  }, [timers, activeTimerId]);
+
+  /* ===============================
+     CHECK EVERY MINUTE (MIDNIGHT SAFETY)
+  =============================== */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      handleDayChange();
+    }, 60000); // 1 min check
+
+    return () => clearInterval(interval);
+  }, [timers, activeTimerId]);
+
   return (
     <TimerContext.Provider
       value={{
@@ -130,4 +198,5 @@ export const TimerProvider = ({ children }) => {
   );
 };
 
-export const useTimerContext = () => useContext(TimerContext);
+export const useTimerContext = () =>
+  useContext(TimerContext);
