@@ -58,6 +58,7 @@ export const TimerProvider = ({ children }) => {
       totalDuration: 0,
       isRunning: false,
       startTime: null,
+      notes:"",
     };
 
     setTimers(prev => [...prev, newTimer]);
@@ -155,6 +156,17 @@ export const TimerProvider = ({ children }) => {
     }
   };
 
+  const updateTimerNotes = (timerId, notes) => {
+  setTimers(prevTimers =>
+    prevTimers.map(timer =>
+      timer.id === timerId
+        ? { ...timer, notes }
+        : timer
+    )
+  );
+};
+  
+
   /* ===============================
      CHECK WHEN APP COMES FOREGROUND
   =============================== */
@@ -191,6 +203,7 @@ export const TimerProvider = ({ children }) => {
         startTimer,
         stopTimer,
         getTimersByDate,
+        updateTimerNotes,
       }}
     >
       {children}

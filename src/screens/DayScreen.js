@@ -25,6 +25,7 @@ const DayScreen = ({ route }) => {
     startTimer,
     stopTimer,
     activeTimerId,
+    updateTimerNotes
   } = useTimerContext();
 
   const [taskName, setTaskName] = useState("");
@@ -57,6 +58,7 @@ const DayScreen = ({ route }) => {
             isActive={activeTimerId === item.id}
             onStart={() => canEdit && startTimer(item.id)}
             onStop={() => canEdit && stopTimer(item.id)}
+            onUpdateNotes={updateTimerNotes}
             disabled={!canEdit}
     />
           )}
